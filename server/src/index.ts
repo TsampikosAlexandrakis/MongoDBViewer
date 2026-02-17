@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import dotenv from 'dotenv';
 import connectionRoutes from './routes/connection';
 import databaseRoutes from './routes/databases';
@@ -24,6 +25,13 @@ app.use('/api/databases', documentRoutes);
 app.use('/api/databases', indexRoutes);
 app.use('/api/databases', aggregationRoutes);
 app.use('/api/databases', schemaRoutes);
+
+// Serve client in production
+const clientPath = path.join(__dirname, '..', 'client-dist');
+app.use(express.static(clientPath));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(clientPath, 'index.html'));
+});
 
 app.listen(PORT, () => {
   console.log(`MongoDB Viewer server running on port ${PORT}`);
