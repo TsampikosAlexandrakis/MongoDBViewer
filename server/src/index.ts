@@ -30,8 +30,12 @@ if (!JWT_SECRET || JWT_SECRET === 'replace_with_64_byte_random_hex_string') {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const allowedOrigins = (process.env.ALLOWED_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(s => s.trim());
+
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:5173',
+  origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
