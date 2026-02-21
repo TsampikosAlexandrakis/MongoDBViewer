@@ -4,6 +4,30 @@ import { mongoManager } from '../services/mongoClient';
 
 const router = Router();
 
+/**
+ * Parse an _id URL param back to its original type.
+ * Tries JSON.parse first (handles numbers, booleans, objects),
+ * then ObjectId, then falls back to raw string.
+ */
+function parseId(raw: string): any {
+  // Try JSON.parse to recover numbers, booleans, null, or nested objects
+  try {
+    const parsed = JSON.parse(raw);
+    // If it parsed to an object with $oid, convert to ObjectId
+    if (parsed && typeof parsed === 'object' && parsed.$oid) {
+      return new ObjectId(parsed.$oid);
+    }
+    return parsed;
+  } catch {
+    // Not valid JSON — try ObjectId, then string
+  }
+  try {
+    return new ObjectId(raw);
+  } catch {
+    return raw;
+  }
+}
+
 router.get('/:db/collections/:col/documents', async (req: Request, res: Response) => {
   try {
     const db = mongoManager.getDb(req.params.db);
@@ -49,13 +73,7 @@ router.put('/:db/collections/:col/documents/:id', async (req: Request, res: Resp
     const db = mongoManager.getDb(req.params.db);
     const collection = db.collection(req.params.col);
     const { _id, ...updateData } = req.body;
-
-    let filter: any;
-    try {
-      filter = { _id: new ObjectId(req.params.id) };
-    } catch {
-      filter = { _id: req.params.id };
-    }
+    const filter = { _id: parseId(req.params.id) };
 
     const result = await collection.replaceOne(filter, updateData);
     res.json({ success: true, modifiedCount: result.modifiedCount });
@@ -69,12 +87,7 @@ router.delete('/:db/collections/:col/documents/:id', async (req: Request, res: R
     const db = mongoManager.getDb(req.params.db);
     const collection = db.collection(req.params.col);
 
-    let filter: any;
-    try {
-      filter = { _id: new ObjectId(req.params.id) };
-    } catch {
-      filter = { _id: req.params.id };
-    }
+    const filter = { _id: parseId(req.params.id) };
 
     const result = await collection.deleteOne(filter);
     res.json({ success: true, deletedCount: result.deletedCount });

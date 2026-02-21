@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
+import { useNavigationStore } from '../../store/navigationStore';
 import FilterBar from './FilterBar';
 import DocumentEditor from './DocumentEditor';
 import TreeView from '../common/TreeView';
@@ -59,22 +60,44 @@ export default function DocumentList({ db, collection }: Props) {
   };
 
   const handleInsert = async (doc: any) => {
-    await api.insertDocument(db, collection, doc);
-    fetchDocuments();
+    try {
+      await api.insertDocument(db, collection, doc);
+      fetchDocuments();
+    } catch (err: any) {
+      setError(err.message || 'Failed to insert document');
+    }
   };
 
   const handleUpdate = async (doc: any) => {
     if (!editingDoc) return;
-    const id = editingDoc._id?.$oid || editingDoc._id || String(editingDoc._id);
-    await api.updateDocument(db, collection, String(id), doc);
-    fetchDocuments();
+    try {
+      const id = editingDoc._id?.$oid || editingDoc._id || String(editingDoc._id);
+      await api.updateDocument(db, collection, String(id), doc);
+      fetchDocuments();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update document');
+    }
   };
 
   const handleDelete = async (doc: any) => {
     if (!confirm('Delete this document?')) return;
-    const id = doc._id?.$oid || doc._id || String(doc._id);
-    await api.deleteDocument(db, collection, String(id));
-    fetchDocuments();
+    try {
+      const id = doc._id?.$oid || doc._id || String(doc._id);
+      await api.deleteDocument(db, collection, String(id));
+      fetchDocuments();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete document');
+    }
+  };
+
+  const handleDropCollection = async () => {
+    if (!confirm(`Drop collection "${collection}"? This cannot be undone.`)) return;
+    try {
+      await api.dropCollection(db, collection);
+      useNavigationStore.getState().setActiveCollection(db, null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to drop collection');
+    }
   };
 
   const allKeys = Array.from(new Set(documents.flatMap((d) => Object.keys(d))));
@@ -111,12 +134,20 @@ export default function DocumentList({ db, collection }: Props) {
             </button>
           </div>
         </div>
-        <button
-          onClick={() => { setEditingDoc(null); setEditorMode('create'); setEditorOpen(true); }}
-          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-xs font-medium text-white"
-        >
-          + Insert
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDropCollection}
+            className="px-3 py-1 bg-red-700 hover:bg-red-600 rounded text-xs font-medium text-white"
+          >
+            Drop Collection
+          </button>
+          <button
+            onClick={() => { setEditingDoc(null); setEditorMode('create'); setEditorOpen(true); }}
+            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-xs font-medium text-white"
+          >
+            + Insert
+          </button>
+        </div>
       </div>
 
       {error && <div className="px-3 py-2 text-xs text-red-400 bg-red-950/50">{error}</div>}
